@@ -53,8 +53,9 @@ int load_huge_file(const char* name, uint16_t offs, uint16_t segs);
 
 // ==================
 void draw_pixel(uint16_t x, uint16_t y, uint8_t color);
+void draw_hline(uint16_t x, uint16_t y, uint16_t w, uint8_t color);
 void draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color);
-void draw_circle(uint16_t x0, uint16_t y0, uint16_t radius, uint8_t color);
+void draw_circle(int x0, int y0, int r, uint8_t color);
 
 #ifdef __cplusplus
 }

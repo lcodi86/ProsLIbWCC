@@ -385,13 +385,13 @@ void draw_pixel(uint16_t x, uint16_t y, uint8_t color) {
     __asm {
         mov ax, y
         mov bx, ax
-        shl ax, 6    ; y * 64
-        shl bx, 4    ; y * 16
-        add ax, bx   ; ax = y * 80
+        shl ax, 6
+        shl bx, 4
+        add ax, bx
         
         mov bx, x
-        shr bx, 3    ; x / 8
-        add bx, ax   ; bx = offset
+        shr bx, 3
+        add bx, ax
 
         mov cx, x
         and cx, 7
@@ -417,37 +417,73 @@ void draw_pixel(uint16_t x, uint16_t y, uint8_t color) {
     }
 }
 
-void draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color) {
-    uint16_t i, j;
-    for (i = 0; i < h; i++) {
-        for (j = 0; j < w; j++) {
-            draw_pixel(x + j, y + i, color);
-        }
+void draw_hline(uint16_t x, uint16_t y, uint16_t w, uint8_t color) {
+    if (w == 0) return;
+
+    __asm {
+        mov ax, y
+        mov bx, ax
+        shl ax, 6
+        shl bx, 4
+        add ax, bx
+        mov di, x
+        shr di, 3
+        add di, ax
+
+        mov ax, 0xA000
+        mov es, ax
+
+        mov dx, 0x03CE
+        mov ax, 0x0205
+        out dx, ax
+
+        mov cx, w
+        mov bx, x
+        and bx, 7
+
+    line_loop:
+        mov al, 0x80
+        push cx
+        mov cl, bl
+        shr al, cl
+        pop cx
+
+        mov ah, al
+        mov al, 0x08
+        out dx, ax
+
+        mov al, es:[di]
+        mov al, color
+        mov es:[di], al
+
+        inc bx
+        cmp bx, 8
+        jne skip_inc
+        xor bx, bx
+        inc di
+    skip_inc:
+        loop line_loop
+
+        mov ax, 0x0005
+        out dx, ax
     }
 }
 
-void draw_circle(uint16_t x0, uint16_t y0, uint16_t radius, uint8_t color) {
-    uint16_t x = radius;
-    uint16_t y = 0;
-    uint16_t err = 0;
-
-    while (x >= y) {
-        draw_pixel(x0 + x, y0 + y, color);
-        draw_pixel(x0 + y, y0 + x, color);
-        draw_pixel(x0 - y, y0 + x, color);
-        draw_pixel(x0 - x, y0 + y, color);
-        draw_pixel(x0 - x, y0 - y, color);
-        draw_pixel(x0 - y, y0 - x, color);
-        draw_pixel(x0 + y, y0 - x, color);
-        draw_pixel(x0 + x, y0 - y, color);
-
-        if (err <= 0) {
-            y += 1;
-            err += 2 * y + 1;
-        }
-        if (err > 0) {
-            x -= 1;
-            err -= 2 * x + 1;
-        }
+void draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color) {
+    for (uint16_t i = 0; i < h; i++) {
+        draw_hline(x, y + i, w, color);
     }
+}
+
+void draw_circle(int x0, int y0, int r, uint8_t color) {
+    int x = -r, y = 0, err = 2 - 2 * r;
+    do {
+        draw_pixel(x0 - x, y0 + y, color);
+        draw_pixel(x0 - y, y0 - x, color);
+        draw_pixel(x0 + x, y0 - y, color);
+        draw_pixel(x0 + y, y0 + x, color);
+        r = err;
+        if (r <= y) err += ++y * 2 + 1;
+        if (r > x || err > y) err += ++x * 2 + 1;
+    } while (x < 0);
 }
